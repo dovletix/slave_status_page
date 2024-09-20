@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Статусы генераторов</title>
+</head>
+<body>
+<h1>Статусы генераторов</h1>
+<table border="1">
+    <tr>
+        <th>Генератор</th>
+        <th>Статус</th>
+        <th>Действия</th>
+    </tr>
+    <th:block th:each="gen : ${generators}">
+        <tr>
+            <td th:text="${gen.name}">Generator Name</td>
+            <td th:text="${statusMap[gen.name]}">Status</td>
+            <td>
+                <form th:action="@{'/occupy/' + ${gen.name}}" method="post" style="display:inline;">
+                    <button type="submit">Занять генератор</button>
+                </form>
+                <form th:action="@{'/release/' + ${gen.name}}" method="post" style="display:inline;">
+                    <button type="submit">Освободить генератор</button>
+                </form>
+            </td>
+        </tr>
+    </th:block>
+</table>
+</body>
+</html>
