@@ -1,0 +1,27 @@
+<!-- src/main/resources/templates/add-whitelist-entry.html -->
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Добавить запись в белый список</title>
+    <link rel="stylesheet" type="text/css" href="/css/styles.css">
+    <meta charset="UTF-8">
+</head>
+<body>
+<header>
+    <h1>Добавить запись в белый список</h1>
+    <nav>
+        <a href="/">Главная</a> |
+        <a href="/whitelist">Белый список</a>
+    </nav>
+</header>
+
+<form th:action="@{/whitelist/add}" method="post">
+    <div>
+        <label>Путь:</label>
+        <input type="text" th:field="*{path}" required />
+    </div>
+    <button type="submit">Сохранить</button>
+</form>
+</body>
+</html>

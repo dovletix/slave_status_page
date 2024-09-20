@@ -1,0 +1,36 @@
+<!-- src/main/resources/templates/whitelist.html -->
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Белый список</title>
+    <link rel="stylesheet" type="text/css" href="/css/styles.css">
+    <meta charset="UTF-8">
+</head>
+<body>
+<header>
+    <h1>Белый список</h1>
+    <nav>
+        <a href="/">Главная</a> |
+        <a href="/generators">Управление генераторами</a>
+    </nav>
+</header>
+
+<a href="/whitelist/add">Добавить запись</a>
+
+<table>
+    <tr>
+        <th>Путь</th>
+        <th>Действия</th>
+    </tr>
+    <th:block th:each="entry : ${whitelist}">
+        <tr>
+            <td th:text="${entry.path}">Path</td>
+            <td>
+                <a th:href="@{'/whitelist/delete/' + ${entry.id}}" onclick="return confirm('Удалить запись?');">Удалить</a>
+            </td>
+        </tr>
+    </th:block>
+</table>
+</body>
+</html>

@@ -1,11 +1,22 @@
+<!-- src/main/resources/templates/index.html -->
+
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Статусы генераторов</title>
+    <link rel="stylesheet" type="text/css" href="/css/styles.css">
+    <meta charset="UTF-8">
 </head>
 <body>
-<h1>Статусы генераторов</h1>
-<table border="1">
+<header>
+    <h1>Статусы генераторов</h1>
+    <nav>
+        <a href="/generators">Управление генераторами</a> |
+        <a href="/whitelist">Белый список</a>
+    </nav>
+</header>
+
+<table>
     <tr>
         <th>Генератор</th>
         <th>Статус</th>
@@ -16,15 +27,19 @@
             <td th:text="${gen.name}">Generator Name</td>
             <td th:text="${statusMap[gen.name]}">Status</td>
             <td>
-                <form th:action="@{'/occupy/' + ${gen.name}}" method="post" style="display:inline;">
+                <form th:action="@{'/occupy/' + ${gen.id}}" method="post" style="display:inline;">
                     <button type="submit">Занять генератор</button>
                 </form>
-                <form th:action="@{'/release/' + ${gen.name}}" method="post" style="display:inline;">
+                <form th:action="@{'/release/' + ${gen.id}}" method="post" style="display:inline;">
                     <button type="submit">Освободить генератор</button>
                 </form>
             </td>
         </tr>
     </th:block>
 </table>
+
+<div class="footer">
+    &copy; 2023 Ваша Компания
+</div>
 </body>
 </html>
