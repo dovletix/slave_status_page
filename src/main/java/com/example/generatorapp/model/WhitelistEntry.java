@@ -1,3 +1,5 @@
+// src/main/java/com/example/generatorapp/model/WhitelistEntry.java
+
 package com.example.generatorapp.model;
 
 import javax.persistence.*;
@@ -11,21 +13,15 @@ public class WhitelistEntry {
 
     private String path;
 
-    // Конструкторы
-    public WhitelistEntry() {
-    }
-
-    public WhitelistEntry(String path) {
-        this.path = path;
-    }
-
     // Геттеры и сеттеры
 
     public Long getId() {
         return id;
     }
 
-    // Сеттер для 'id' обычно не нужен
+    public void setId(Long id) {
+        this.id = id;
+    }
 
     public String getPath() {
         return path;

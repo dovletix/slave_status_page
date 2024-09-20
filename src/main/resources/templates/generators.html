@@ -4,20 +4,14 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Управление генераторами</title>
-    <link rel="stylesheet" type="text/css" href="/css/styles.css">
     <meta charset="UTF-8">
 </head>
 <body>
-<header>
-    <h1>Управление генераторами</h1>
-    <nav>
-        <a href="/">Главная</a> |
-        <a href="/whitelist">Белый список</a>
-    </nav>
-</header>
-
-<a href="/generators/add">Добавить генератор</a>
-
+<h1>Список генераторов</h1>
+<nav>
+    <a href="/">Главная</a> |
+    <a href="/generators/add">Добавить генератор</a>
+</nav>
 <table>
     <tr>
         <th>Имя</th>
@@ -32,7 +26,7 @@
             <td th:text="${gen.username}">Username</td>
             <td>
                 <a th:href="@{'/generators/edit/' + ${gen.id}}">Редактировать</a> |
-                <a th:href="@{'/generators/delete/' + ${gen.id}}" onclick="return confirm('Удалить генератор?');">Удалить</a>
+                <a th:href="@{'/generators/delete/' + ${gen.id}}">Удалить</a>
             </td>
         </tr>
     </th:block>

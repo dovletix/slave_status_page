@@ -1,3 +1,5 @@
+// src/main/java/com/example/generatorapp/model/Generator.java
+
 package com.example.generatorapp.model;
 
 import javax.persistence.*;
@@ -14,24 +16,11 @@ public class Generator {
     private String username;
     private String password;
 
-    // Конструкторы
-    public Generator() {
-    }
-
-    public Generator(String name, String address, String username, String password) {
-        this.name = name;
-        this.address = address;
-        this.username = username;
-        this.password = password;
-    }
-
     // Геттеры и сеттеры
 
     public Long getId() {
         return id;
     }
-
-    // Если вы не хотите предоставлять сеттер для 'id' (обычно для идентификаторов он не нужен), можно его не добавлять.
 
     public String getName() {
         return name;
@@ -39,6 +28,10 @@ public class Generator {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getAddress() {
@@ -61,9 +54,8 @@ public class Generator {
         return password;
     }
 
-    // Если вы беспокоитесь о безопасности, можете не предоставлять геттер для 'password'.
-
     public void setPassword(String password) {
         this.password = password;
     }
+
 }

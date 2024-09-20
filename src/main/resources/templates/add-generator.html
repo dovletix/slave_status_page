@@ -3,42 +3,16 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title th:text="${generator.id == null} ? 'Добавить генератор' : 'Редактировать генератор'">Добавить генератор</title>
-    <link rel="stylesheet" type="text/css" href="/css/styles.css">
+    <title>Добавить генератор</title>
     <meta charset="UTF-8">
 </head>
 <body>
-<header>
-    <h1 th:text="${generator.id == null} ? 'Добавить генератор' : 'Редактировать генератор'">Добавить генератор</h1>
-    <nav>
-        <a href="/">Главная</a> |
-        <a href="/generators">Управление генераторами</a>
-    </nav>
-</header>
-
-<form th:action="@{/generators/add}" th:object="${generator}" th:if="${generator.id == null}" method="post">
-    <!-- Для добавления -->
-    <div>
-        <label>Имя:</label>
-        <input type="text" th:field="*{name}" required />
-    </div>
-    <div>
-        <label>Адрес:</label>
-        <input type="text" th:field="*{address}" required />
-    </div>
-    <div>
-        <label>Имя пользователя:</label>
-        <input type="text" th:field="*{username}" required />
-    </div>
-    <div>
-        <label>Пароль:</label>
-        <input type="password" th:field="*{password}" required />
-    </div>
-    <button type="submit">Сохранить</button>
-</form>
-
-<form th:action="@{/generators/edit}" th:object="${generator}" th:if="${generator.id != null}" method="post">
-    <!-- Для редактирования -->
+<h1>Добавить/Редактировать генератор</h1>
+<nav>
+    <a href="/">Главная</a> |
+    <a href="/generators">Список генераторов</a>
+</nav>
+<form th:action="@{/generators/add}" th:object="${generator}" method="post">
     <input type="hidden" th:field="*{id}" />
     <div>
         <label>Имя:</label>
@@ -49,14 +23,16 @@
         <input type="text" th:field="*{address}" required />
     </div>
     <div>
-        <label>Имя пользователя:</label>
+        <label>Пользователь:</label>
         <input type="text" th:field="*{username}" required />
     </div>
     <div>
         <label>Пароль:</label>
         <input type="password" th:field="*{password}" required />
     </div>
-    <button type="submit">Сохранить</button>
+    <div>
+        <button type="submit">Сохранить</button>
+    </div>
 </form>
 </body>
 </html>
