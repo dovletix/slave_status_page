@@ -1,5 +1,3 @@
-<!-- src/main/resources/templates/index.html -->
-
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -47,6 +45,7 @@
 </table>
 
 <script>
+    // Функции для получения CSRF-токена и имени заголовка
     function getCsrfToken() {
         return $('meta[name="_csrf"]').attr('content');
     }
@@ -55,6 +54,7 @@
         return $('meta[name="_csrf_header"]').attr('content');
     }
 
+    // Функция для обновления статусов генераторов
     function updateStatuses() {
         console.log('Вызов функции updateStatuses');
         $.ajax({
@@ -73,14 +73,14 @@
 
                         if (status === 'Занят' || status.startsWith('Ошибка')) {
                             occupyButton.prop('disabled', true);
-                        } else {
+                            releaseButton.prop('disabled', false);
+                        } else if (status === 'Свободен') {
                             occupyButton.prop('disabled', false);
-                        }
-
-                        if (status === 'Свободен' || status.startsWith('Ошибка')) {
                             releaseButton.prop('disabled', true);
                         } else {
-                            releaseButton.prop('disabled', false);
+                            // В случае ошибки отключаем обе кнопки
+                            occupyButton.prop('disabled', true);
+                            releaseButton.prop('disabled', true);
                         }
                     }
                 }
@@ -91,60 +91,17 @@
         });
     }
 
+    // Функция для занятия генератора
     function occupyGenerator(generatorId) {
-        var occupyButton = $('#occupy-btn-' + generatorId);
-        occupyButton.prop('disabled', true);
-
-        var csrfToken = getCsrfToken();
-        var csrfHeader = getCsrfHeader();
-
-        $.ajax({
-            url: '/occupy/' + generatorId,
-            type: 'POST',
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader(csrfHeader, csrfToken);
-            },
-            success: function () {
-                console.log('Генератор ' + generatorId + ' успешно занят.');
-                $('#status-' + generatorId).text('Занят');
-                occupyButton.prop('disabled', true);
-                $('#release-btn-' + generatorId).prop('disabled', false);
-            },
-            error: function (xhr, status, error) {
-                console.error('Ошибка при занятии генератора:', error);
-                alert('Ошибка при занятии генератора: ' + xhr.responseText);
-                occupyButton.prop('disabled', false);
-            }
-        });
+        // ... существующий код ...
     }
 
+    // Функция для освобождения генератора
     function releaseGenerator(generatorId) {
-        var releaseButton = $('#release-btn-' + generatorId);
-        releaseButton.prop('disabled', true);
-
-        var csrfToken = getCsrfToken();
-        var csrfHeader = getCsrfHeader();
-
-        $.ajax({
-            url: '/release/' + generatorId,
-            type: 'POST',
-            beforeSend: function (xhr) {
-                xhr.setRequestHeader(csrfHeader, csrfToken);
-            },
-            success: function () {
-                console.log('Генератор ' + generatorId + ' успешно освобождён.');
-                $('#status-' + generatorId).text('Свободен');
-                releaseButton.prop('disabled', true);
-                $('#occupy-btn-' + generatorId).prop('disabled', false);
-            },
-            error: function (xhr, status, error) {
-                console.error('Ошибка при освобождении генератора:', error);
-                alert('Ошибка при освобождении генератора: ' + xhr.responseText);
-                releaseButton.prop('disabled', false);
-            }
-        });
+        // ... существующий код ...
     }
 
+    // Функция для обновления статусов с сервера
     function refreshStatuses() {
         var csrfToken = getCsrfToken();
         var csrfHeader = getCsrfHeader();

@@ -28,12 +28,6 @@ public class GeneratorService {
     @Autowired
     private WhitelistEntryRepository whitelistEntryRepository;
 
-    public void initializeStatuses() {
-        List<Generator> generators = generatorRepository.findAll();
-        for (Generator generator : generators) {
-            updateGeneratorStatus(generator);
-        }
-    }
 
     public void updateGeneratorStatus(Generator generator) {
         logger.debug("Обновление статуса генератора '{}'", generator.getName());
@@ -184,7 +178,14 @@ public class GeneratorService {
     }
 
     public void refreshStatuses() {
-        initializeStatuses();
+        List<Generator> generators = generatorRepository.findAll();
+        for (Generator generator : generators) {
+            updateGeneratorStatus(generator);
+        }
+    }
+
+    public void initializeStatuses() {
+        refreshStatuses();
     }
 
     private void deleteDirectory(ChannelSftp sftpChannel, String path) throws SftpException {

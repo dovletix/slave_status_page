@@ -29,6 +29,18 @@ public class GeneratorController {
         return "index";
     }
 
+    // Новый метод для получения статусов генераторов
+    @GetMapping("/getStatuses")
+    @ResponseBody
+    public Map<Long, String> getStatuses() {
+        List<Generator> generators = generatorRepository.findAll();
+        Map<Long, String> statusMap = new HashMap<>();
+        for (Generator generator : generators) {
+            statusMap.put(generator.getId(), generator.getStatus());
+        }
+        return statusMap;
+    }
+
     // Новый метод для обновления статусов
     @PostMapping("/refreshStatuses")
     @ResponseBody
@@ -36,51 +48,8 @@ public class GeneratorController {
         new Thread(() -> generatorService.refreshStatuses()).start();
         return "OK";
     }
-    // Методы для добавления, редактирования и удаления генераторов
 
-    @GetMapping("/generators")
-    public String listGenerators(Model model) {
-        List<Generator> generators = generatorRepository.findAll();
-        model.addAttribute("generators", generators);
-        return "generators";
-    }
-
-    @GetMapping("/generators/add")
-    public String addGeneratorForm(Model model) {
-        model.addAttribute("generator", new Generator());
-        return "add-generator";
-    }
-
-    @PostMapping("/generators/add")
-    public String addGenerator(@ModelAttribute Generator generator) {
-        generatorRepository.save(generator);
-        return "redirect:/generators";
-    }
-
-    @GetMapping("/generators/edit/{id}")
-    public String editGeneratorForm(@PathVariable Long id, Model model) {
-        Generator generator = generatorRepository.findById(id).orElse(null);
-        if (generator != null) {
-            model.addAttribute("generator", generator);
-            return "add-generator"; // Используем тот же шаблон
-        }
-        return "redirect:/generators";
-    }
-
-    @PostMapping("/generators/edit")
-    public String editGenerator(@ModelAttribute Generator generator) {
-        generatorRepository.save(generator);
-        return "redirect:/generators";
-    }
-
-    @GetMapping("/generators/delete/{id}")
-    public String deleteGenerator(@PathVariable Long id) {
-        generatorRepository.deleteById(id);
-        return "redirect:/generators";
-    }
-
-    // Методы для занятия и освобождения генератора
-
+    // Методы для занятия и освобождения генераторов
     @PostMapping("/occupy/{id}")
     @ResponseBody
     public String occupyGenerator(@PathVariable Long id) {
@@ -103,17 +72,6 @@ public class GeneratorController {
         } else {
             return "Generator not found";
         }
-    }
-
-    @GetMapping("/getStatuses")
-    @ResponseBody
-    public Map<Long, String> getStatuses() {
-        List<Generator> generators = generatorRepository.findAll();
-        Map<Long, String> statusMap = new HashMap<>();
-        for (Generator generator : generators) {
-            statusMap.put(generator.getId(), generator.getStatus());
-        }
-        return statusMap;
     }
 
 }
