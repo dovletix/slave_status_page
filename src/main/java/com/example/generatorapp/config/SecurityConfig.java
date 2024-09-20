@@ -1,9 +1,8 @@
-package com.example.generatorapp;
+package com.example.generatorapp.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configuration.*;
 
 @Configuration
 @EnableWebSecurity
@@ -15,6 +14,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .authorizeRequests()
                 .anyRequest().permitAll()
                 .and()
-                .csrf().disable();
+                .csrf()
+                .ignoringAntMatchers("/occupy/**", "/release/**", "/refreshStatuses")
+                .and()
+                .formLogin().disable()
+                .httpBasic().disable();
     }
 }

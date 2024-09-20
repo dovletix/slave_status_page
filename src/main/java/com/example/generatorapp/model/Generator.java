@@ -16,6 +16,8 @@ public class Generator {
     private String username;
     private String password;
 
+    private String status; // Новое поле для статуса
+
     // Геттеры и сеттеры
 
     public Long getId() {
@@ -58,4 +60,11 @@ public class Generator {
         this.password = password;
     }
 
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }

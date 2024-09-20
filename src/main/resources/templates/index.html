@@ -9,6 +9,8 @@
     <!-- Подключение jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- CSRF-токены -->
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
 </head>
 <body>
 <header>
@@ -19,6 +21,9 @@
     </nav>
 </header>
 
+<!-- Кнопка для обновления статусов -->
+<button onclick="refreshStatuses()">Подключиться к генератору и перепроверить статус</button>
+
 <table>
     <tr>
         <th>Генератор</th>
@@ -28,11 +33,13 @@
     <th:block th:each="gen : ${generators}">
         <tr>
             <td th:text="${gen.name}">Generator Name</td>
-            <td id="status-[[${gen.id}]]" th:text="${statusMap[gen.id]}">Status</td>
+            <td id="status-[[${gen.id}]]" th:text="${gen.status}">Status</td>
             <td>
                 <button id="occupy-btn-[[${gen.id}]]"
+                        th:disabled="${gen.status == 'Занят' || gen.status.startsWith('Ошибка')}"
                         th:onclick="'occupyGenerator(' + ${gen.id} + ')'">Занять генератор</button>
                 <button id="release-btn-[[${gen.id}]]"
+                        th:disabled="${gen.status == 'Свободен' || gen.status.startsWith('Ошибка')}"
                         th:onclick="'releaseGenerator(' + ${gen.id} + ')'">Освободить генератор</button>
             </td>
         </tr>
@@ -40,7 +47,6 @@
 </table>
 
 <script>
-    // Функции для получения CSRF-токена и имени заголовка
     function getCsrfToken() {
         return $('meta[name="_csrf"]').attr('content');
     }
@@ -49,21 +55,33 @@
         return $('meta[name="_csrf_header"]').attr('content');
     }
 
-    // Функция для обновления статусов генераторов
     function updateStatuses() {
         console.log('Вызов функции updateStatuses');
         $.ajax({
-            url: '/status',
+            url: '/getStatuses',
             type: 'GET',
             success: function (data) {
-                console.log('Получены данные:', data);
-                var statusMap = data['statusMap'];
-                for (var generatorId in statusMap) {
-                    if (statusMap.hasOwnProperty(generatorId)) {
-                        var status = statusMap[generatorId];
+                console.log('Получены статусы генераторов:', data);
+                for (var generatorId in data) {
+                    if (data.hasOwnProperty(generatorId)) {
+                        var status = data[generatorId];
                         var id = 'status-' + generatorId;
-                        console.log('Обновление статуса для генератора ' + generatorId + ': ' + status);
                         $('#' + id).text(status);
+
+                        var occupyButton = $('#occupy-btn-' + generatorId);
+                        var releaseButton = $('#release-btn-' + generatorId);
+
+                        if (status === 'Занят' || status.startsWith('Ошибка')) {
+                            occupyButton.prop('disabled', true);
+                        } else {
+                            occupyButton.prop('disabled', false);
+                        }
+
+                        if (status === 'Свободен' || status.startsWith('Ошибка')) {
+                            releaseButton.prop('disabled', true);
+                        } else {
+                            releaseButton.prop('disabled', false);
+                        }
                     }
                 }
             },
@@ -73,55 +91,80 @@
         });
     }
 
-    // Функция для занятия генератора
     function occupyGenerator(generatorId) {
         var occupyButton = $('#occupy-btn-' + generatorId);
         occupyButton.prop('disabled', true);
 
+        var csrfToken = getCsrfToken();
+        var csrfHeader = getCsrfHeader();
 
         $.ajax({
             url: '/occupy/' + generatorId,
             type: 'POST',
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader(csrfHeader, csrfToken);
+            },
             success: function () {
                 console.log('Генератор ' + generatorId + ' успешно занят.');
-                // Обновляем статус на клиенте сразу
                 $('#status-' + generatorId).text('Занят');
+                occupyButton.prop('disabled', true);
+                $('#release-btn-' + generatorId).prop('disabled', false);
             },
             error: function (xhr, status, error) {
                 console.error('Ошибка при занятии генератора:', error);
                 alert('Ошибка при занятии генератора: ' + xhr.responseText);
-            },
-            complete: function () {
                 occupyButton.prop('disabled', false);
             }
         });
     }
 
-    // Функция для освобождения генератора
     function releaseGenerator(generatorId) {
         var releaseButton = $('#release-btn-' + generatorId);
         releaseButton.prop('disabled', true);
 
+        var csrfToken = getCsrfToken();
+        var csrfHeader = getCsrfHeader();
+
         $.ajax({
             url: '/release/' + generatorId,
             type: 'POST',
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader(csrfHeader, csrfToken);
+            },
             success: function () {
                 console.log('Генератор ' + generatorId + ' успешно освобождён.');
-                // Обновляем статус на клиенте сразу
                 $('#status-' + generatorId).text('Свободен');
+                releaseButton.prop('disabled', true);
+                $('#occupy-btn-' + generatorId).prop('disabled', false);
             },
             error: function (xhr, status, error) {
                 console.error('Ошибка при освобождении генератора:', error);
                 alert('Ошибка при освобождении генератора: ' + xhr.responseText);
-            },
-            complete: function () {
                 releaseButton.prop('disabled', false);
             }
         });
     }
 
-    // Обновляем статусы каждые 5 секунд
-    setInterval(updateStatuses, 5000);
+    function refreshStatuses() {
+        var csrfToken = getCsrfToken();
+        var csrfHeader = getCsrfHeader();
+
+        $.ajax({
+            url: '/refreshStatuses',
+            type: 'POST',
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader(csrfHeader, csrfToken);
+            },
+            success: function () {
+                console.log('Статусы генераторов обновлены.');
+                updateStatuses();
+            },
+            error: function (xhr, status, error) {
+                console.error('Ошибка при обновлении статусов:', error);
+                alert('Ошибка при обновлении статусов: ' + xhr.responseText);
+            }
+        });
+    }
 
     // Выполняем первоначальное обновление статусов при загрузке страницы
     updateStatuses();

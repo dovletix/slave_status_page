@@ -1,5 +1,3 @@
-// src/main/java/com/example/generatorapp/controller/GeneratorStatusController.java
-
 package com.example.generatorapp.controller;
 
 import com.example.generatorapp.model.Generator;

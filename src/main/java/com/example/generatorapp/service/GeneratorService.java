@@ -4,6 +4,7 @@ package com.example.generatorapp.service;
 
 import com.example.generatorapp.model.Generator;
 import com.example.generatorapp.model.WhitelistEntry;
+import com.example.generatorapp.repository.GeneratorRepository;
 import com.example.generatorapp.repository.WhitelistEntryRepository;
 import com.jcraft.jsch.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 
 @Service
 public class GeneratorService {
@@ -20,17 +23,15 @@ public class GeneratorService {
     private static final Logger logger = LoggerFactory.getLogger(GeneratorService.class);
 
     @Autowired
+    private GeneratorRepository generatorRepository;
+
+    @Autowired
     private WhitelistEntryRepository whitelistEntryRepository;
 
-    private Map<Long, String> statusMap = new ConcurrentHashMap<>();
-
-    public Map<Long, String> getStatusMap() {
-        return statusMap;
-    }
-
-    public void updateAllStatuses(List<Generator> generators) {
+    public void initializeStatuses() {
+        List<Generator> generators = generatorRepository.findAll();
         for (Generator generator : generators) {
-            new Thread(() -> updateGeneratorStatus(generator)).start();
+            updateGeneratorStatus(generator);
         }
     }
 
@@ -53,7 +54,8 @@ public class GeneratorService {
                     BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
                     writer.write("0");
                     writer.close();
-                    statusMap.put(generator.getId(), "Свободен");
+                    generator.setStatus("Свободен");
+                    generatorRepository.save(generator);
                     sftpChannel.disconnect();
                     session.disconnect();
                     return;
@@ -65,23 +67,26 @@ public class GeneratorService {
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             String content = reader.readLine().trim();
             if ("1".equals(content)) {
-                statusMap.put(generator.getId(), "Занят");
+                generator.setStatus("Занят");
             } else {
-                statusMap.put(generator.getId(), "Свободен");
+                generator.setStatus("Свободен");
             }
+            generatorRepository.save(generator);
             reader.close();
 
             sftpChannel.disconnect();
             session.disconnect();
         } catch (Exception e) {
             logger.error("Ошибка при обновлении статуса генератора '{}': {}", generator.getName(), e.getMessage());
-            statusMap.put(generator.getId(), "Ошибка: " + e.getMessage());
+            generator.setStatus("Ошибка: " + e.getMessage());
+            generatorRepository.save(generator);
         }
     }
 
     public void occupyGenerator(Generator generator) {
         logger.info("Попытка занять генератор '{}'", generator.getName());
-        statusMap.put(generator.getId(), "Занят");
+        generator.setStatus("Занят");
+        generatorRepository.save(generator);
         try {
             Session session = createSession(generator);
             session.connect();
@@ -89,7 +94,19 @@ public class GeneratorService {
             ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
             sftpChannel.connect();
 
-            OutputStream outputStream = sftpChannel.put("lockfile.txt");
+            OutputStream outputStream;
+            try {
+                sftpChannel.lstat("lockfile.txt");
+                outputStream = sftpChannel.put("lockfile.txt");
+            } catch (SftpException e) {
+                if (e.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) {
+                    // Файл не найден, создаём его и записываем '1'
+                    outputStream = sftpChannel.put("lockfile.txt");
+                } else {
+                    throw e;
+                }
+            }
+
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
             writer.write("1");
             writer.close();
@@ -98,13 +115,15 @@ public class GeneratorService {
             session.disconnect();
         } catch (Exception e) {
             logger.error("Ошибка при занятии генератора '{}': {}", generator.getName(), e.getMessage());
-            statusMap.put(generator.getId(), "Ошибка: " + e.getMessage());
+            generator.setStatus("Ошибка: " + e.getMessage());
+            generatorRepository.save(generator);
         }
     }
 
     public void releaseGenerator(Generator generator) {
         logger.info("Попытка освободить генератор '{}'", generator.getName());
-        statusMap.put(generator.getId(), "Свободен");
+        generator.setStatus("Свободен");
+        generatorRepository.save(generator);
         try {
             Session session = createSession(generator);
             session.connect();
@@ -112,7 +131,19 @@ public class GeneratorService {
             ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
             sftpChannel.connect();
 
-            OutputStream outputStream = sftpChannel.put("lockfile.txt");
+            OutputStream outputStream;
+            try {
+                sftpChannel.lstat("lockfile.txt");
+                outputStream = sftpChannel.put("lockfile.txt");
+            } catch (SftpException e) {
+                if (e.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) {
+                    // Файл не найден, создаём его и записываем '0'
+                    outputStream = sftpChannel.put("lockfile.txt");
+                } else {
+                    throw e;
+                }
+            }
+
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
             writer.write("0");
             writer.close();
@@ -147,8 +178,13 @@ public class GeneratorService {
             session.disconnect();
         } catch (Exception e) {
             logger.error("Ошибка при освобождении генератора '{}': {}", generator.getName(), e.getMessage());
-            statusMap.put(generator.getId(), "Ошибка: " + e.getMessage());
+            generator.setStatus("Ошибка: " + e.getMessage());
+            generatorRepository.save(generator);
         }
+    }
+
+    public void refreshStatuses() {
+        initializeStatuses();
     }
 
     private void deleteDirectory(ChannelSftp sftpChannel, String path) throws SftpException {
@@ -182,5 +218,11 @@ public class GeneratorService {
         session.setConfig(config);
 
         return session;
+    }
+
+
+    @EventListener(ContextRefreshedEvent.class)
+    public void onApplicationEvent(ContextRefreshedEvent event) {
+        initializeStatuses();
     }
 }

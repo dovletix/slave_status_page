@@ -10,6 +10,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 @Controller
 public class GeneratorController {
@@ -23,13 +25,17 @@ public class GeneratorController {
     @GetMapping("/")
     public String index(Model model) {
         List<Generator> generators = generatorRepository.findAll();
-        generatorService.updateAllStatuses(generators);
-
         model.addAttribute("generators", generators);
-        model.addAttribute("statusMap", generatorService.getStatusMap());
         return "index";
     }
 
+    // Новый метод для обновления статусов
+    @PostMapping("/refreshStatuses")
+    @ResponseBody
+    public String refreshStatuses() {
+        new Thread(() -> generatorService.refreshStatuses()).start();
+        return "OK";
+    }
     // Методы для добавления, редактирования и удаления генераторов
 
     @GetMapping("/generators")
@@ -97,6 +103,17 @@ public class GeneratorController {
         } else {
             return "Generator not found";
         }
+    }
+
+    @GetMapping("/getStatuses")
+    @ResponseBody
+    public Map<Long, String> getStatuses() {
+        List<Generator> generators = generatorRepository.findAll();
+        Map<Long, String> statusMap = new HashMap<>();
+        for (Generator generator : generators) {
+            statusMap.put(generator.getId(), generator.getStatus());
+        }
+        return statusMap;
     }
 
 }
