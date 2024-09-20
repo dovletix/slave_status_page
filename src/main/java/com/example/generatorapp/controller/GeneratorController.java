@@ -14,9 +14,15 @@ import org.springframework.web.bind.annotation.*;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Controller
 public class GeneratorController {
+
+
+    private static final Logger logger = LoggerFactory.getLogger(GeneratorController.class);
+
 
     @Autowired
     private GeneratorRepository generatorRepository;
@@ -40,6 +46,7 @@ public class GeneratorController {
         model.addAttribute("statusMap", statusMap);
         return "index";
     }
+
 
     // Методы для добавления, редактирования и удаления генераторов
 
@@ -111,20 +118,25 @@ public class GeneratorController {
     }
 
     private void updateGeneratorStatus(Generator generator) {
+        logger.debug("Обновление статуса генератора '{}'", generator.getName());
         try {
             Session session = createSession(generator);
             session.connect();
+            logger.debug("SSH-сессия с генератором '{}' установлена", generator.getName());
 
             ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
             sftpChannel.connect();
+            logger.debug("SFTP-канал с генератором '{}' открыт", generator.getName());
 
             InputStream inputStream = null;
             try {
                 // Пытаемся открыть файл lockfile.txt
                 inputStream = sftpChannel.get("lockfile.txt");
+                logger.debug("Файл lockfile.txt найден на генераторе '{}'", generator.getName());
             } catch (SftpException e) {
                 if (e.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) {
-                    // Файл не найден, создаём его и записываем '1'
+                    // Файл не найден, создаём его и записываем '0'
+                    logger.warn("Файл lockfile.txt не найден на генераторе '{}'. Создаём файл и устанавливаем '1'.", generator.getName());
                     OutputStream outputStream = sftpChannel.put("lockfile.txt");
                     BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
                     writer.write("0");
@@ -141,6 +153,7 @@ public class GeneratorController {
             // Если файл найден, читаем его содержимое
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             String content = reader.readLine().trim();
+            logger.debug("Содержимое lockfile.txt на генераторе '{}': '{}'", generator.getName(), content);
             if ("1".equals(content)) {
                 statusMap.put(generator.getName(), "Занят");
             } else {
@@ -150,26 +163,34 @@ public class GeneratorController {
 
             sftpChannel.disconnect();
             session.disconnect();
+            logger.debug("Статус генератора '{}' обновлён: {}", generator.getName(), statusMap.get(generator.getName()));
         } catch (Exception e) {
+            logger.error("Ошибка при обновлении статуса генератора '{}': {}", generator.getName(), e.getMessage());
             statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
         }
     }
 
 
+
     private void occupyGeneratorAction(Generator generator) {
+        logger.info("Попытка занять генератор '{}'", generator.getName());
         try {
             Session session = createSession(generator);
             session.connect();
+            logger.debug("SSH-сессия с генератором '{}' установлена", generator.getName());
 
             ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
             sftpChannel.connect();
+            logger.debug("SFTP-канал с генератором '{}' открыт", generator.getName());
 
             // Попытка открыть lockfile.txt для проверки
             try {
                 sftpChannel.lstat("lockfile.txt");
+                logger.debug("Файл lockfile.txt найден на генераторе '{}'", generator.getName());
             } catch (SftpException e) {
                 if (e.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) {
                     // Файл не найден, создаём его
+                    logger.warn("Файл lockfile.txt не найден на генераторе '{}'. Создаём файл.", generator.getName());
                     OutputStream outputStream = sftpChannel.put("lockfile.txt");
                     BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
                     writer.write("1");
@@ -177,6 +198,7 @@ public class GeneratorController {
                     statusMap.put(generator.getName(), "Занят");
                     sftpChannel.disconnect();
                     session.disconnect();
+                    logger.info("Генератор '{}' успешно занят.", generator.getName());
                     return;
                 } else {
                     throw e;
@@ -188,30 +210,60 @@ public class GeneratorController {
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
             writer.write("1");
             writer.close();
+            logger.debug("Файл lockfile.txt на генераторе '{}' установлен в '1'", generator.getName());
 
             sftpChannel.disconnect();
             session.disconnect();
 
             statusMap.put(generator.getName(), "Занят");
+            logger.info("Генератор '{}' успешно занят.", generator.getName());
         } catch (Exception e) {
+            logger.error("Ошибка при занятии генератора '{}': {}", generator.getName(), e.getMessage());
             statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
         }
     }
 
 
+
     private void releaseGeneratorAction(Generator generator) {
+        logger.info("Попытка освободить генератор '{}'", generator.getName());
         try {
             Session session = createSession(generator);
             session.connect();
+            logger.debug("SSH-сессия с генератором '{}' установлена", generator.getName());
 
             ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
             sftpChannel.connect();
+            logger.debug("SFTP-канал с генератором '{}' открыт", generator.getName());
 
-            // Устанавливаем lockfile.txt в '0'
-            OutputStream outputStream = sftpChannel.put("lockfile.txt");
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
-            writer.write("0");
-            writer.close();
+            boolean fileExists = true;
+
+            // Попытка открыть lockfile.txt для проверки
+            try {
+                sftpChannel.lstat("lockfile.txt");
+                logger.debug("Файл lockfile.txt найден на генераторе '{}'", generator.getName());
+            } catch (SftpException e) {
+                if (e.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) {
+                    // Файл не найден, создаём его и записываем '0'
+                    logger.warn("Файл lockfile.txt не найден на генераторе '{}'. Создаём файл и устанавливаем '0'.", generator.getName());
+                    OutputStream outputStream = sftpChannel.put("lockfile.txt");
+                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
+                    writer.write("0");
+                    writer.close();
+                    fileExists = false;
+                } else {
+                    throw e;
+                }
+            }
+
+            if (fileExists) {
+                // Файл найден, записываем '0'
+                OutputStream outputStream = sftpChannel.put("lockfile.txt");
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
+                writer.write("0");
+                writer.close();
+                logger.debug("Файл lockfile.txt на генераторе '{}' установлен в '0'", generator.getName());
+            }
 
             // Получаем белый список
             List<WhitelistEntry> whitelist = whitelistEntryRepository.findAll();
@@ -219,9 +271,11 @@ public class GeneratorController {
             for (WhitelistEntry entry : whitelist) {
                 whitelistPaths.add(entry.getPath());
             }
+            logger.debug("Белый список путей: {}", whitelistPaths);
 
             // Получаем список файлов и папок в корневом каталоге
             Vector<ChannelSftp.LsEntry> files = sftpChannel.ls(".");
+            logger.debug("Список файлов и папок на генераторе '{}': {}", generator.getName(), files);
 
             for (ChannelSftp.LsEntry entry : files) {
                 String filename = entry.getFilename();
@@ -233,13 +287,16 @@ public class GeneratorController {
 
                 // Пропускаем файлы и папки из белого списка
                 if (whitelistPaths.contains(filename)) {
+                    logger.debug("Файл/папка '{}' находится в белом списке. Пропускаем.", filename);
                     continue;
                 }
 
                 // Удаляем файл или папку
                 if (entry.getAttrs().isDir()) {
+                    logger.info("Удаляем папку '{}' на генераторе '{}'", filename, generator.getName());
                     deleteDirectory(sftpChannel, filename);
                 } else {
+                    logger.info("Удаляем файл '{}' на генераторе '{}'", filename, generator.getName());
                     sftpChannel.rm(filename);
                 }
             }
@@ -248,12 +305,16 @@ public class GeneratorController {
             session.disconnect();
 
             statusMap.put(generator.getName(), "Свободен");
+            logger.info("Генератор '{}' успешно освобождён.", generator.getName());
         } catch (Exception e) {
+            logger.error("Ошибка при освобождении генератора '{}': {}", generator.getName(), e.getMessage());
             statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
         }
     }
 
+
     private void deleteDirectory(ChannelSftp sftpChannel, String path) throws SftpException {
+        logger.debug("Удаление директории '{}'", path);
         Vector<ChannelSftp.LsEntry> files = sftpChannel.ls(path);
 
         for (ChannelSftp.LsEntry entry : files) {
@@ -267,14 +328,18 @@ public class GeneratorController {
             if (entry.getAttrs().isDir()) {
                 deleteDirectory(sftpChannel, fullPath);
             } else {
+                logger.debug("Удаляем файл '{}'", fullPath);
                 sftpChannel.rm(fullPath);
             }
         }
 
+        logger.debug("Удаляем директорию '{}'", path);
         sftpChannel.rmdir(path);
     }
 
+
     private Session createSession(Generator generator) throws JSchException {
+        logger.debug("Создание SSH-сессии для генератора '{}'", generator.getName());
         JSch jsch = new JSch();
         Session session = jsch.getSession(generator.getUsername(), generator.getAddress(), 22);
         session.setPassword(generator.getPassword());
