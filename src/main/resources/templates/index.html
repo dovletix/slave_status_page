@@ -2,10 +2,16 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Статусы генераторов</title>
+    <link rel="stylesheet" type="text/css" href="/css/styles.css">
 </head>
 <body>
 <h1>Статусы генераторов</h1>
-<table border="1">
+<div class="update-button">
+    <form th:action="@{/updateStatuses}" method="post">
+        <button type="submit">Обновить все статусы</button>
+    </form>
+</div>
+<table>
     <tr>
         <th>Генератор</th>
         <th>Статус</th>

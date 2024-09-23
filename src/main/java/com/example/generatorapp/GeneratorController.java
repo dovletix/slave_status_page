@@ -1,52 +1,14 @@
-// Помните, что необходимо добавить зависимости в ваш проект:
-// - Spring Boot для создания веб-приложения
-// - JSch для SSH-подключений
-
-// Файл build.gradle (если используете Gradle):
-/*
-plugins {
-    id 'org.springframework.boot' version '2.7.5'
-    id 'io.spring.dependency-management' version '1.0.14.RELEASE'
-    id 'java'
-}
-
-group = 'com.example'
-version = '1.0.0'
-sourceCompatibility = '11'
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-    implementation 'com.jcraft:jsch:0.1.55'
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-}
-*/
-
-// Основной класс приложения:
-
 package com.example.generatorapp;
 
 import com.jcraft.jsch.*;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-
-import com.jcraft.jsch.*;
-
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
-// Контроллер:
 
 @Controller
 public class GeneratorController {
@@ -99,11 +61,14 @@ public class GeneratorController {
         }
     }
 
+    // Метод, который выполняется один раз при запуске приложения
+    @PostConstruct
+    public void init() {
+        updateAllStatuses();
+    }
+
     @GetMapping("/")
     public String index(Model model) {
-        // Обновляем статусы
-        updateAllStatuses();
-
         model.addAttribute("generators", generators);
         model.addAttribute("statusMap", statusMap);
         return "index";
@@ -124,6 +89,13 @@ public class GeneratorController {
         if (generator != null) {
             new Thread(() -> releaseGeneratorAction(generator)).start();
         }
+        return "redirect:/";
+    }
+
+    // Новый метод для обновления всех статусов при нажатии кнопки
+    @PostMapping("/updateStatuses")
+    public String updateStatuses() {
+        updateAllStatuses();
         return "redirect:/";
     }
 
@@ -225,7 +197,7 @@ public class GeneratorController {
             }
 
             // Добавляем команду для удаления найденных файлов и директорий
-            findCommand.append(" -exec rm -r {} +");
+            findCommand.append(" -exec rm -rf {} +");
 
             // Выполняем команду удаления
             ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
