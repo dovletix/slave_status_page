@@ -23,6 +23,7 @@
             <td th:text="${statusMap[gen.name]}">Status</td>
             <td>
                 <form th:action="@{'/occupy/' + ${gen.name}}" method="post" style="display:inline;">
+                    <input type="text" name="userName" placeholder="Ваше имя" required>
                     <button type="submit">Занять генератор</button>
                 </form>
                 <form th:action="@{'/release/' + ${gen.name}}" method="post" style="display:inline;">
