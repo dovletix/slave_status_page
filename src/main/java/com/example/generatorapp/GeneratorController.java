@@ -40,6 +40,12 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.jcraft.jsch.*;
+
+import java.io.*;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
 // Контроллер:
 
 @Controller
@@ -201,18 +207,40 @@ public class GeneratorController {
             writer.write("0");
             writer.close();
 
-            // Осторожно удаляем файлы
-            List<String> directoriesToClean = Arrays.asList("/path/to/jmx", "/path/to/csv", "/path/to/logs");
-            for (String directory : directoriesToClean) {
-                try {
-                    ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
-                    channelExec.setCommand("rm -f " + directory + "/*.jmx " + directory + "/*.csv " + directory + "/*.log");
-                    channelExec.connect();
-                    channelExec.disconnect();
-                } catch (Exception e) {
-                    System.out.println("Ошибка при удалении файлов в " + directory + ": " + e.getMessage());
-                }
+            // Определяем белый список
+            List<String> whitelist = Arrays.asList("apa", "lockfile.txt");
+
+            // Получаем домашнюю директорию пользователя
+            String homeDir = getHomeDirectory(session);
+
+            // Строим команду find для удаления
+            StringBuilder findCommand = new StringBuilder("find " + homeDir + " -maxdepth 1 -mindepth 1");
+
+            // Исключаем скрытые файлы и директории
+            findCommand.append(" ! -name '.*'");
+
+            // Исключаем элементы из белого списка
+            for (String item : whitelist) {
+                findCommand.append(" ! -name '" + item + "'");
             }
+
+            // Добавляем команду для удаления найденных файлов и директорий
+            findCommand.append(" -exec rm -r {} +");
+
+            // Выполняем команду удаления
+            ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
+            channelExec.setCommand(findCommand.toString());
+            channelExec.connect();
+
+            // Читаем вывод команды (если необходимо)
+            InputStream in = channelExec.getInputStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // Можно обработать вывод, если нужно
+                System.out.println(line);
+            }
+            channelExec.disconnect();
 
             sftpChannel.disconnect();
             session.disconnect();
@@ -221,6 +249,20 @@ public class GeneratorController {
         } catch (Exception e) {
             statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
         }
+    }
+
+    private String getHomeDirectory(Session session) throws JSchException, IOException {
+        // Выполняем 'echo $HOME' для получения домашней директории
+        ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
+        channelExec.setCommand("echo $HOME");
+        InputStream in = channelExec.getInputStream();
+        channelExec.connect();
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+        String homeDir = reader.readLine().trim();
+
+        channelExec.disconnect();
+        return homeDir;
     }
 
     private Session createSession(Generator generator) throws JSchException {
