@@ -211,74 +211,77 @@ public class GeneratorController {
     }
 
     private void releaseGeneratorAction(Generator generator) {
-        try {
-            Session session = createSession(generator);
-            session.connect();
-
-            ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
-            sftpChannel.connect();
-
-            // Устанавливаем lockfile.txt в '0'
-            OutputStream outputStream = sftpChannel.put("lockfile.txt");
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
-            writer.write("0");
-            writer.close();
-
-            // Удаляем файл с именем пользователя
+        synchronized (generator) {
             try {
-                sftpChannel.rm("occupier.txt");
-            } catch (SftpException e) {
-                // Файл может отсутствовать
+                Session session = createSession(generator);
+                session.connect();
+
+                ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
+                sftpChannel.connect();
+
+                // Устанавливаем lockfile.txt в '0'
+                OutputStream outputStream = sftpChannel.put("lockfile.txt");
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
+                writer.write("0");
+                writer.close();
+
+                // Удаляем файл с именем пользователя
+                try {
+                    sftpChannel.rm("occupier.txt");
+                } catch (SftpException e) {
+                    // Файл может отсутствовать
+                }
+
+                // Определяем белый список
+                List<String> whitelist = Arrays.asList("apa", "lockfile.txt");
+
+                // Получаем домашнюю директорию пользователя
+                String homeDir = getHomeDirectory(session);
+
+                // Построение команды find для рекурсивного удаления файлов с определенными расширениями
+                StringBuilder findCommand = new StringBuilder("find " + homeDir);
+
+                // Исключаем скрытые файлы и директории
+                findCommand.append(" \\( ! -name '.*' \\)");
+
+                // Исключаем файлы и директории из белого списка (только самих их, но не их содержимое)
+                for (String item : whitelist) {
+                    String itemPath = homeDir + "/" + item;
+                    findCommand.append(" \\( ! -path '" + itemPath + "' \\)");
+                }
+
+                // Ищем файлы с нужными расширениями
+                findCommand.append(" -type f \\( -name '*.jmx' -o -name '*.csv' -o -name '*.sh' \\)");
+
+                // Добавляем команду для удаления найденных файлов
+                findCommand.append(" -exec rm -f {} +");
+
+                // Выполняем команду удаления
+                ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
+                channelExec.setCommand(findCommand.toString());
+                InputStream in = channelExec.getInputStream();
+                channelExec.connect();
+
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    // Обработка вывода (при необходимости)
+                }
+                reader.close();
+                channelExec.disconnect();
+
+                sftpChannel.disconnect();
+                session.disconnect();
+
+                statusMap.put(generator.getName(), "Свободен");
+
+                // Задержка в 1 секунду перед обновлением статусов
+                Thread.sleep(1000);
+                updateAllStatuses();
+
+            } catch (Exception e) {
+                statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
             }
-
-            // Определяем белый список
-            List<String> whitelist = Arrays.asList("apa", "lockfile.txt");
-
-            // Получаем домашнюю директорию пользователя
-            String homeDir = getHomeDirectory(session);
-
-            // Строим команду find для удаления файлов с определенными расширениями
-            StringBuilder findCommand = new StringBuilder("find " + homeDir + " -maxdepth 1 -type f");
-
-            // Исключаем скрытые файлы
-            findCommand.append(" ! -name '.*'");
-
-            // Исключаем файлы из белого списка
-            for (String item : whitelist) {
-                findCommand.append(" ! -name '" + item + "'");
-            }
-
-            // Указываем расширения файлов для удаления
-            findCommand.append(" \\( -name '*.jmx' -o -name '*.csv' -o -name '*.sh' \\ )");
-
-            // Добавляем команду для удаления найденных файлов
-            findCommand.append(" -exec rm -f {} +");
-
-            // Выполняем команду удаления
-            ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
-            channelExec.setCommand(findCommand.toString());
-            InputStream in = channelExec.getInputStream();
-            channelExec.connect();
-
-            BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                // Обработка вывода (при необходимости)
-            }
-            reader.close();
-            channelExec.disconnect();
-
-            sftpChannel.disconnect();
-            session.disconnect();
-
-            statusMap.put(generator.getName(), "Свободен");
-
-            // Задержка в 1 секунду перед обновлением статусов
-            Thread.sleep(1000);
-            updateAllStatuses();
-
-        } catch (Exception e) {
-            statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
         }
     }
 
