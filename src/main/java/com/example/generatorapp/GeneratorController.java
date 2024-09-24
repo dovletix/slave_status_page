@@ -232,29 +232,36 @@ public class GeneratorController {
                     // Файл может отсутствовать
                 }
 
-                // Определяем белый список
-                List<String> whitelist = Arrays.asList("apa", "lockfile.txt");
+                // Определяем белый список (только lockfile.txt)
+                List<String> whitelist = Arrays.asList("lockfile.txt");
 
                 // Получаем домашнюю директорию пользователя
                 String homeDir = getHomeDirectory(session);
 
-                // Построение команды find для рекурсивного удаления файлов с определенными расширениями
+                // Строим список путей для исключения (полные пути к элементам белого списка)
+                List<String> whitelistPaths = new ArrayList<>();
+                for (String item : whitelist) {
+                    String itemPath = homeDir + "/" + item;
+                    whitelistPaths.add(itemPath);
+                }
+
+                // Строим команду find для удаления файлов и директорий с определенными расширениями
                 StringBuilder findCommand = new StringBuilder("find " + homeDir);
 
                 // Исключаем скрытые файлы и директории
-                findCommand.append(" \\( ! -name '.*' \\)");
+                findCommand.append(" -not -path '*/.*'");
 
-                // Исключаем файлы и директории из белого списка (только самих их, но не их содержимое)
-                for (String item : whitelist) {
-                    String itemPath = homeDir + "/" + item;
-                    findCommand.append(" \\( ! -path '" + itemPath + "' \\)");
+                // Исключаем пути из белого списка и их содержимое
+                for (String itemPath : whitelistPaths) {
+                    findCommand.append(" -not -path '" + itemPath + "'");
+                    findCommand.append(" -not -path '" + itemPath + "/*'");
                 }
 
-                // Ищем файлы с нужными расширениями
-                findCommand.append(" -type f \\( -name '*.jmx' -o -name '*.csv' -o -name '*.sh' \\)");
+                // Ищем файлы и директории для удаления
+                findCommand.append(" \\( -type f \\( -name '*.jmx' -o -name '*.csv' -o -name '*.sh' \\) -o -type d \\)");
 
-                // Добавляем команду для удаления найденных файлов
-                findCommand.append(" -exec rm -f {} +");
+                // Добавляем команду для удаления найденных файлов и пустых директорий
+                findCommand.append(" -exec rm -rf {} +");
 
                 // Выполняем команду удаления
                 ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
