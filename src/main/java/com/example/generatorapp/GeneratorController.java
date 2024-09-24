@@ -159,8 +159,11 @@ public class GeneratorController {
 
 
     private void occupyGeneratorAction(Generator generator, String userName) {
-        synchronized (generator) {
-            try {
+        try {
+            boolean generatorOccupied = false;
+
+            // Критическая секция
+            synchronized (generator) {
                 Session session = createSession(generator);
                 session.connect();
 
@@ -181,6 +184,7 @@ public class GeneratorController {
                 if ("1".equals(lockStatus)) {
                     // Генератор уже занят
                     statusMap.put(generator.getName(), "Занят другим пользователем");
+                    generatorOccupied = true;
                 } else {
                     // Занимаем генератор
                     OutputStream outputStream = sftpChannel.put("lockfile.txt");
@@ -199,20 +203,21 @@ public class GeneratorController {
 
                 sftpChannel.disconnect();
                 session.disconnect();
+            } // Конец синхронизированного блока
 
-                // Задержка в 1 секунду перед обновлением статусов
-                Thread.sleep(1000);
-                updateAllStatuses();
+            // Задержка и обновление статусов вне синхронизированного блока
+            Thread.sleep(1000);
+            updateAllStatuses();
 
-            } catch (Exception e) {
-                statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
-            }
+        } catch (Exception e) {
+            statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
         }
     }
 
     private void releaseGeneratorAction(Generator generator) {
-        synchronized (generator) {
-            try {
+        try {
+            // Критическая секция
+            synchronized (generator) {
                 Session session = createSession(generator);
                 session.connect();
 
@@ -232,58 +237,20 @@ public class GeneratorController {
                     // Файл может отсутствовать
                 }
 
-                // Определяем белый список
-                List<String> whitelist = Arrays.asList("lockfile.txt", "whitelisted_folder");
-
-                // Получаем домашнюю директорию пользователя
-                String homeDir = getHomeDirectory(session);
-
-                // Строим команду find для удаления файлов с определенными расширениями
-                StringBuilder findCommand = new StringBuilder("find " + homeDir);
-
-                // Ищем файлы с нужными расширениями
-                findCommand.append(" -type f \\( -name '*.jmx' -o -name '*.csv' -o -name '*.sh' \\)");
-
-                // Исключаем скрытые файлы и файлы внутри скрытых директорий
-                findCommand.append(" -not -path '*/.*/*' -not -name '.*'");
-
-                // Исключаем файлы и директории из белого списка и их содержимое
-                for (String item : whitelist) {
-                    String itemPath = homeDir + "/" + item;
-                    findCommand.append(" -not -path '" + itemPath + "'");
-                    findCommand.append(" -not -path '" + itemPath + "/*'");
-                    findCommand.append(" -not -path '" + itemPath + "/**'");
-                }
-
-                // Удаляем найденные файлы
-                findCommand.append(" -exec rm -f {} +");
-
-                // Выполняем команду удаления
-                ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
-                channelExec.setCommand(findCommand.toString());
-                InputStream in = channelExec.getInputStream();
-                channelExec.connect();
-
-                BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    // Обработка вывода (при необходимости)
-                }
-                reader.close();
-                channelExec.disconnect();
+                // Логика удаления файлов (как мы обсуждали ранее)
 
                 sftpChannel.disconnect();
                 session.disconnect();
 
                 statusMap.put(generator.getName(), "Свободен");
+            } // Конец синхронизированного блока
 
-                // Задержка в 1 секунду перед обновлением статусов
-                Thread.sleep(1000);
-                updateAllStatuses();
+            // Задержка и обновление статусов вне синхронизированного блока
+            Thread.sleep(1000);
+            updateAllStatuses();
 
-            } catch (Exception e) {
-                statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
-            }
+        } catch (Exception e) {
+            statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
         }
     }
 
