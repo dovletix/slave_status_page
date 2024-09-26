@@ -11,6 +11,9 @@
         <button type="submit">Обновить все статусы</button>
     </form>
 </div>
+<div class="add-button">
+    <a href="/addGenerator"><button>Добавить генератор</button></a>
+</div>
 <table>
     <tr>
         <th>Генератор</th>
@@ -22,12 +25,18 @@
             <td th:text="${gen.name}">Generator Name</td>
             <td th:text="${statusMap[gen.name]}">Status</td>
             <td>
-                <form th:action="@{'/occupy/' + ${gen.name}}" method="post" style="display:inline;">
+                <form th:action="@{'/occupy/' + ${gen.id}}" method="post" style="display:inline;">
                     <input type="text" name="userName" placeholder="Ваше имя" required>
                     <button type="submit">Занять генератор</button>
                 </form>
-                <form th:action="@{'/release/' + ${gen.name}}" method="post" style="display:inline;">
+                <form th:action="@{'/release/' + ${gen.id}}" method="post" style="display:inline;">
                     <button type="submit">Освободить генератор</button>
+                </form>
+                <a th:href="@{'/changePassword/' + ${gen.id}}" style="display:inline;">
+                    <button>Сменить пароль</button>
+                </a>
+                <form th:action="@{'/delete/' + ${gen.id}}" method="post" style="display:inline;">
+                    <button class="delete-button" type="submit">🗑️</button>
                 </form>
             </td>
         </tr>

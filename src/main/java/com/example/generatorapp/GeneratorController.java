@@ -1,10 +1,12 @@
 package com.example.generatorapp;
 
+import com.example.generatorapp.model.Generator;
+import com.example.generatorapp.repository.GeneratorRepository;
 import com.jcraft.jsch.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-
 import javax.annotation.PostConstruct;
 import java.io.*;
 import java.util.*;
@@ -13,53 +15,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @Controller
 public class GeneratorController {
 
-    // Класс Generator для хранения информации о генераторе
-    public static class Generator {
-        private String name;
-        private String address;
-        private String username;
-        private String password;
-
-        public Generator(String name, String address, String username, String password) {
-            this.name = name;
-            this.address = address;
-            this.username = username;
-            this.password = password;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getAddress() {
-            return address;
-        }
-
-        public String getUsername() {
-            return username;
-        }
-
-        public String getPassword() {
-            return password;
-        }
-    }
-
-    // Список генераторов
-    private List<Generator> generators = new ArrayList<>();
+    @Autowired
+    private GeneratorRepository generatorRepository;
 
     // Карта статусов
     private Map<String, String> statusMap = new ConcurrentHashMap<>();
-
-    public GeneratorController() {
-        // Инициализируем список генераторов
-        generators.add(new Generator("Generator1", "192.168.1.10", "username", "password"));
-        generators.add(new Generator("Generator2", "192.168.1.11", "username", "password"));
-
-        // Инициализируем статус каждого генератора
-        for (Generator generator : generators) {
-            statusMap.put(generator.getName(), "Неизвестно");
-        }
-    }
 
     // Метод, который выполняется один раз при запуске приложения
     @PostConstruct
@@ -69,46 +29,79 @@ public class GeneratorController {
 
     @GetMapping("/")
     public String index(Model model) {
+        List<Generator> generators = generatorRepository.findAll();
         model.addAttribute("generators", generators);
         model.addAttribute("statusMap", statusMap);
         return "index";
     }
 
-    @PostMapping("/occupy/{generatorName}")
-    public String occupyGenerator(@PathVariable String generatorName, @RequestParam("userName") String userName) {
-        Generator generator = getGeneratorByName(generatorName);
+    @PostMapping("/occupy/{generatorId}")
+    public String occupyGenerator(@PathVariable Long generatorId, @RequestParam("userName") String userName) {
+        Generator generator = generatorRepository.findById(generatorId).orElse(null);
         if (generator != null) {
             new Thread(() -> occupyGeneratorAction(generator, userName)).start();
         }
         return "redirect:/";
     }
 
-    @PostMapping("/release/{generatorName}")
-    public String releaseGenerator(@PathVariable String generatorName) {
-        Generator generator = getGeneratorByName(generatorName);
+    @PostMapping("/release/{generatorId}")
+    public String releaseGenerator(@PathVariable Long generatorId) {
+        Generator generator = generatorRepository.findById(generatorId).orElse(null);
         if (generator != null) {
             new Thread(() -> releaseGeneratorAction(generator)).start();
         }
         return "redirect:/";
     }
 
-    // Новый метод для обновления всех статусов при нажатии кнопки
     @PostMapping("/updateStatuses")
     public String updateStatuses() {
         updateAllStatuses();
         return "redirect:/";
     }
 
-    private Generator getGeneratorByName(String name) {
-        for (Generator generator : generators) {
-            if (generator.getName().equals(name)) {
-                return generator;
-            }
+    // Новый метод для добавления генератора
+    @GetMapping("/addGenerator")
+    public String addGeneratorForm(Model model) {
+        model.addAttribute("generator", new Generator());
+        return "addGenerator";
+    }
+
+    @PostMapping("/addGenerator")
+    public String addGenerator(@ModelAttribute Generator generator) {
+        generatorRepository.save(generator);
+        return "redirect:/";
+    }
+
+    // Метод для удаления генератора
+    @PostMapping("/delete/{generatorId}")
+    public String deleteGenerator(@PathVariable Long generatorId) {
+        generatorRepository.deleteById(generatorId);
+        return "redirect:/";
+    }
+
+    // Метод для изменения пароля генератора
+    @GetMapping("/changePassword/{generatorId}")
+    public String changePasswordForm(@PathVariable Long generatorId, Model model) {
+        Generator generator = generatorRepository.findById(generatorId).orElse(null);
+        if (generator != null) {
+            model.addAttribute("generator", generator);
+            return "changePassword";
         }
-        return null;
+        return "redirect:/";
+    }
+
+    @PostMapping("/changePassword")
+    public String changePassword(@ModelAttribute Generator generator) {
+        Generator existingGenerator = generatorRepository.findById(generator.getId()).orElse(null);
+        if (existingGenerator != null) {
+            existingGenerator.setPassword(generator.getPassword());
+            generatorRepository.save(existingGenerator);
+        }
+        return "redirect:/";
     }
 
     private void updateAllStatuses() {
+        List<Generator> generators = generatorRepository.findAll();
         for (Generator generator : generators) {
             new Thread(() -> updateGeneratorStatus(generator)).start();
         }
