@@ -115,30 +115,28 @@ public class GeneratorController {
     }
 
     private void updateGeneratorStatus(Generator generator) {
+        Session session = null;
+        ChannelSftp sftpChannel = null;
         try {
-            Session session = createSession(generator);
+            session = createSession(generator);
             session.connect();
 
-            ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
+            sftpChannel = (ChannelSftp) session.openChannel("sftp");
             sftpChannel.connect();
 
             String status;
-            try {
-                InputStream inputStream = sftpChannel.get("lockfile.txt");
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            try (InputStream inputStream = sftpChannel.get("lockfile.txt");
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
                 String content = reader.readLine().trim();
-                reader.close();
-
                 if ("1".equals(content)) {
                     // Читаем имя пользователя
                     String occupierName = "Неизвестно";
-                    try {
-                        InputStream occupierStream = sftpChannel.get("occupier.txt");
-                        BufferedReader occupierReader = new BufferedReader(new InputStreamReader(occupierStream));
+                    try (InputStream occupierStream = sftpChannel.get("occupier.txt");
+                         BufferedReader occupierReader = new BufferedReader(new InputStreamReader(occupierStream))) {
                         occupierName = occupierReader.readLine().trim();
-                        occupierReader.close();
                     } catch (SftpException e) {
                         // Файл occupier.txt может отсутствовать
+                        System.out.println("Файл occupier.txt может отсутствует. Неизвестно кто занял генератор.");
                     }
                     status = "Занят (" + occupierName + ")";
                 } else {
@@ -150,10 +148,16 @@ public class GeneratorController {
 
             statusMap.put(generator.getName(), status);
 
-            sftpChannel.disconnect();
-            session.disconnect();
         } catch (Exception e) {
             statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
+        } finally {
+            // Гарантируем закрытие ресурсов
+            if (sftpChannel != null && sftpChannel.isConnected()) {
+                sftpChannel.disconnect();
+            }
+            if (session != null && session.isConnected()) {
+                session.disconnect();
+            }
         }
     }
 
@@ -161,48 +165,55 @@ public class GeneratorController {
     private void occupyGeneratorAction(Generator generator, String userName) {
         try {
             boolean generatorOccupied = false;
+            Session session = null;
+            ChannelSftp sftpChannel = null;
 
             // Критическая секция
             synchronized (generator) {
-                Session session = createSession(generator);
-                session.connect();
-
-                ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
-                sftpChannel.connect();
-
-                // Проверяем, не занят ли генератор
-                String lockStatus = "0";
                 try {
-                    InputStream inputStream = sftpChannel.get("lockfile.txt");
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                    lockStatus = reader.readLine().trim();
-                    reader.close();
-                } catch (SftpException e) {
-                    // lockfile.txt может отсутствовать, считаем, что генератор свободен
+                    session = createSession(generator);
+                    session.connect();
+
+                    sftpChannel = (ChannelSftp) session.openChannel("sftp");
+                    sftpChannel.connect();
+
+                    // Проверяем, не занят ли генератор
+                    String lockStatus = "0";
+                    try (InputStream inputStream = sftpChannel.get("lockfile.txt");
+                         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+                        lockStatus = reader.readLine().trim();
+                    } catch (SftpException e) {
+                        // lockfile.txt может отсутствовать, считаем, что генератор свободен
+                    }
+
+                    if ("1".equals(lockStatus)) {
+                        // Генератор уже занят
+                        statusMap.put(generator.getName(), "Занят другим пользователем");
+                        generatorOccupied = true;
+                    } else {
+                        // Занимаем генератор
+                        try (OutputStream outputStream = sftpChannel.put("lockfile.txt");
+                             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream))) {
+                            writer.write("1");
+                        }
+
+                        // Сохраняем имя пользователя
+                        try (OutputStream occupierStream = sftpChannel.put("occupier.txt");
+                             BufferedWriter occupierWriter = new BufferedWriter(new OutputStreamWriter(occupierStream))) {
+                            occupierWriter.write(userName);
+                        }
+
+                        statusMap.put(generator.getName(), "Занят (" + userName + ")");
+                    }
+                } finally {
+                    // Гарантируем закрытие ресурсов
+                    if (sftpChannel != null && sftpChannel.isConnected()) {
+                        sftpChannel.disconnect();
+                    }
+                    if (session != null && session.isConnected()) {
+                        session.disconnect();
+                    }
                 }
-
-                if ("1".equals(lockStatus)) {
-                    // Генератор уже занят
-                    statusMap.put(generator.getName(), "Занят другим пользователем");
-                    generatorOccupied = true;
-                } else {
-                    // Занимаем генератор
-                    OutputStream outputStream = sftpChannel.put("lockfile.txt");
-                    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
-                    writer.write("1");
-                    writer.close();
-
-                    // Сохраняем имя пользователя
-                    OutputStream occupierStream = sftpChannel.put("occupier.txt");
-                    BufferedWriter occupierWriter = new BufferedWriter(new OutputStreamWriter(occupierStream));
-                    occupierWriter.write(userName);
-                    occupierWriter.close();
-
-                    statusMap.put(generator.getName(), "Занят (" + userName + ")");
-                }
-
-                sftpChannel.disconnect();
-                session.disconnect();
             } // Конец синхронизированного блока
 
             // Задержка и обновление статусов вне синхронизированного блока
@@ -216,33 +227,90 @@ public class GeneratorController {
 
     private void releaseGeneratorAction(Generator generator) {
         try {
+            Session session = null;
+            ChannelSftp sftpChannel = null;
+
             // Критическая секция
             synchronized (generator) {
-                Session session = createSession(generator);
-                session.connect();
-
-                ChannelSftp sftpChannel = (ChannelSftp) session.openChannel("sftp");
-                sftpChannel.connect();
-
-                // Устанавливаем lockfile.txt в '0'
-                OutputStream outputStream = sftpChannel.put("lockfile.txt");
-                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
-                writer.write("0");
-                writer.close();
-
-                // Удаляем файл с именем пользователя
                 try {
-                    sftpChannel.rm("occupier.txt");
-                } catch (SftpException e) {
-                    // Файл может отсутствовать
+                    session = createSession(generator);
+                    session.connect();
+
+                    sftpChannel = (ChannelSftp) session.openChannel("sftp");
+                    sftpChannel.connect();
+
+                    // Устанавливаем lockfile.txt в '0'
+                    try (OutputStream outputStream = sftpChannel.put("lockfile.txt");
+                         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream))) {
+                        writer.write("0");
+                    }
+
+                    // Удаляем файл с именем пользователя
+                    try {
+                        sftpChannel.rm("occupier.txt");
+                    } catch (SftpException e) {
+                        // Файл может отсутствовать
+                        System.out.println("Файл occupier.txt отсутствует. Удалять нечего.");
+                    }
+
+                    // Определяем белый список
+                    List<String> whitelist = Arrays.asList("whitelisted_file", "whitelisted_folder");
+
+                    // Получаем домашнюю директорию пользователя
+                    String homeDir = getHomeDirectory(session);
+
+                    // Строим команду find для удаления файлов с определенными расширениями
+                    StringBuilder findCommand = new StringBuilder("find " + homeDir);
+
+                    // Ищем файлы с нужными расширениями
+                    findCommand.append(" -type f \\( -name '*.jtl' -o -name '*.csv' -o -name '*.log' \\)");
+
+                    // Исключаем скрытые файлы и файлы внутри скрытых директорий
+                    findCommand.append(" -not -path '*/.*/*' -not -name '.*'");
+
+                    // Исключаем файлы и директории из белого списка и их содержимое
+                    for (String item : whitelist) {
+                        String itemPath = homeDir + "/" + item;
+                        findCommand.append(" -not -path '" + itemPath + "'");
+                        findCommand.append(" -not -path '" + itemPath + "/*'");
+                        findCommand.append(" -not -path '" + itemPath + "/**'");
+                    }
+
+                    // Удаляем найденные файлы
+                    findCommand.append(" -exec rm -f {} +");
+
+                    // Выполняем команду удаления
+                    ChannelExec channelExec = null;
+                    try {
+                        channelExec = (ChannelExec) session.openChannel("exec");
+                        channelExec.setCommand(findCommand.toString());
+                        InputStream in = channelExec.getInputStream();
+                        channelExec.connect();
+
+                        // Читаем вывод команды (при необходимости)
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                // Обработка вывода
+                            }
+                        }
+                    } finally {
+                        if (channelExec != null && channelExec.isConnected()) {
+                            channelExec.disconnect();
+                        }
+                    }
+
+                    statusMap.put(generator.getName(), "Свободен");
+
+                } finally {
+                    // Гарантируем закрытие ресурсов
+                    if (sftpChannel != null && sftpChannel.isConnected()) {
+                        sftpChannel.disconnect();
+                    }
+                    if (session != null && session.isConnected()) {
+                        session.disconnect();
+                    }
                 }
-
-                // Логика удаления файлов (как мы обсуждали ранее)
-
-                sftpChannel.disconnect();
-                session.disconnect();
-
-                statusMap.put(generator.getName(), "Свободен");
             } // Конец синхронизированного блока
 
             // Задержка и обновление статусов вне синхронизированного блока
@@ -256,18 +324,24 @@ public class GeneratorController {
 
 
     private String getHomeDirectory(Session session) throws JSchException, IOException {
-        // Выполняем 'echo $HOME' для получения домашней директории
-        ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
-        channelExec.setCommand("echo $HOME");
-        InputStream in = channelExec.getInputStream();
-        channelExec.connect();
+        ChannelExec channelExec = null;
+        try {
+            channelExec = (ChannelExec) session.openChannel("exec");
+            channelExec.setCommand("echo $HOME");
+            InputStream in = channelExec.getInputStream();
+            channelExec.connect();
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-        String homeDir = reader.readLine().trim();
-
-        channelExec.disconnect();
-        return homeDir;
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
+                return reader.readLine().trim();
+            }
+        } finally {
+            // Гарантируем закрытие ресурса
+            if (channelExec != null && channelExec.isConnected()) {
+                channelExec.disconnect();
+            }
+        }
     }
+
 
     private Session createSession(Generator generator) throws JSchException {
         JSch jsch = new JSch();
