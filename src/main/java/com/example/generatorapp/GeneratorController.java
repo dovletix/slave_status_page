@@ -91,10 +91,10 @@ public class GeneratorController {
     }
 
     @PostMapping("/changePassword")
-    public String changePassword(@ModelAttribute Generator generator) {
-        Generator existingGenerator = generatorRepository.findById(generator.getId()).orElse(null);
+    public String changePassword(@RequestParam("id") Long id, @RequestParam("password") String password) {
+        Generator existingGenerator = generatorRepository.findById(id).orElse(null);
         if (existingGenerator != null) {
-            existingGenerator.setPassword(generator.getPassword());
+            existingGenerator.setPassword(password);
             generatorRepository.save(existingGenerator);
         }
         return "redirect:/";
