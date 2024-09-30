@@ -15,6 +15,13 @@
             });
         });
     </script>
+    <script type="text/javascript">
+        function confirmDelete(form) {
+            var generatorName = form.closest('tr').querySelector('td').innerText.trim();
+            return confirm('Уверены, что хотите удалить ' + generatorName + '?');
+        }
+    </script>
+
 </head>
 <body>
 <h1>Статусы генераторов</h1>
@@ -37,26 +44,28 @@
             <td th:text="${gen.name}">Generator Name</td>
             <td th:text="${statusMap[gen.name]}">Status</td>
             <td>
-                <!-- Определяем текст и действие кнопки в зависимости от статуса -->
-                <th:block th:if="${statusMap[gen.name] != null and statusMap[gen.name].startsWith('Свободен')}">
+                <!-- Блок действий в зависимости от статуса генератора -->
+                <th:block th:if="${(statusMap[gen.name] ?: '').startsWith('Свободен')}">
                     <!-- Кнопка "Занять генератор" -->
                     <form th:action="@{'/occupy/' + ${gen.id}}" method="post" style="display:inline;">
                         <input type="text" name="userName" placeholder="Ваше имя" required>
                         <button type="submit">Занять генератор</button>
                     </form>
                 </th:block>
-                <th:block th:if="${statusMap[gen.name] != null and statusMap[gen.name].startsWith('Занят')}">
+                <th:block th:if="${(statusMap[gen.name] ?: '').startsWith('Занят')}">
                     <!-- Кнопка "Освободить генератор" -->
                     <form th:action="@{'/release/' + ${gen.id}}" method="post" style="display:inline;">
                         <button type="submit">Освободить генератор</button>
                     </form>
                 </th:block>
-                <!-- Кнопка смены пароля -->
-                <a th:href="@{'/changePassword/' + ${gen.id}}" style="display:inline;">
-                    <button>Сменить пароль</button>
-                </a>
+                <!-- Кнопка "Сменить пароль" отображается только при ошибке -->
+                <th:block th:if="${statusMap[gen.name] != null and statusMap[gen.name].contains('Ошибка')}">
+                    <a th:href="@{'/changePassword/' + ${gen.id}}" style="display:inline;">
+                        <button>Сменить пароль</button>
+                    </a>
+                </th:block>
                 <!-- Кнопка удаления генератора -->
-                <form th:action="@{'/delete/' + ${gen.id}}" method="post" style="display:inline;">
+                <form th:action="@{'/delete/' + ${gen.id}}" method="post" style="display:inline;" onsubmit="return confirmDelete(this);">
                     <button class="delete-button" type="submit">🗑️</button>
                 </form>
             </td>
