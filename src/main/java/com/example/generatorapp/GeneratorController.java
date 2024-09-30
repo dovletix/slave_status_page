@@ -48,7 +48,7 @@ public class GeneratorController {
     public String occupyGenerator(@PathVariable Long generatorId, @RequestParam("userName") String userName) {
         Generator generator = generatorRepository.findById(generatorId).orElse(null);
         if (generator != null) {
-            new Thread(() -> occupyGeneratorAction(generator, userName)).start();
+            occupyGeneratorAction(generator, userName); // Выполняем синхронно
         }
         return "redirect:/";
     }
@@ -57,7 +57,7 @@ public class GeneratorController {
     public String releaseGenerator(@PathVariable Long generatorId) {
         Generator generator = generatorRepository.findById(generatorId).orElse(null);
         if (generator != null) {
-            new Thread(() -> releaseGeneratorAction(generator)).start();
+            releaseGeneratorAction(generator); // Выполняем синхронно
         }
         return "redirect:/";
     }
