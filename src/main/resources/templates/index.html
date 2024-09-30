@@ -3,6 +3,18 @@
 <head>
     <title>Статусы генераторов</title>
     <link rel="stylesheet" type="text/css" href="/css/styles.css">
+    <!-- Подключаем jQuery для удобства -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Добавляем скрипт для управления кнопками -->
+    <script type="text/javascript">
+        $(document).ready(function() {
+            // Обработчик нажатия на кнопки занять/освободить
+            $('form').on('submit', function() {
+                // Отключаем все кнопки в текущей строке таблицы
+                $(this).closest('tr').find('button').prop('disabled', true);
+            });
+        });
+    </script>
 </head>
 <body>
 <h1>Статусы генераторов</h1>
@@ -25,16 +37,25 @@
             <td th:text="${gen.name}">Generator Name</td>
             <td th:text="${statusMap[gen.name]}">Status</td>
             <td>
-                <form th:action="@{'/occupy/' + ${gen.id}}" method="post" style="display:inline;">
-                    <input type="text" name="userName" placeholder="Ваше имя" required>
-                    <button type="submit">Занять генератор</button>
-                </form>
-                <form th:action="@{'/release/' + ${gen.id}}" method="post" style="display:inline;">
-                    <button type="submit">Освободить генератор</button>
-                </form>
+                <!-- Определяем текст и действие кнопки в зависимости от статуса -->
+                <th:block th:if="${statusMap[gen.name] != null and statusMap[gen.name].startsWith('Свободен')}">
+                    <!-- Кнопка "Занять генератор" -->
+                    <form th:action="@{'/occupy/' + ${gen.id}}" method="post" style="display:inline;">
+                        <input type="text" name="userName" placeholder="Ваше имя" required>
+                        <button type="submit">Занять генератор</button>
+                    </form>
+                </th:block>
+                <th:block th:if="${statusMap[gen.name] != null and statusMap[gen.name].startsWith('Занят')}">
+                    <!-- Кнопка "Освободить генератор" -->
+                    <form th:action="@{'/release/' + ${gen.id}}" method="post" style="display:inline;">
+                        <button type="submit">Освободить генератор</button>
+                    </form>
+                </th:block>
+                <!-- Кнопка смены пароля -->
                 <a th:href="@{'/changePassword/' + ${gen.id}}" style="display:inline;">
                     <button>Сменить пароль</button>
                 </a>
+                <!-- Кнопка удаления генератора -->
                 <form th:action="@{'/delete/' + ${gen.id}}" method="post" style="display:inline;">
                     <button class="delete-button" type="submit">🗑️</button>
                 </form>

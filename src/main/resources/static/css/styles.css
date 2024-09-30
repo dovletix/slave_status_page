@@ -82,3 +82,9 @@ form {
     color: #ff1a1a;
 }
 
+button:disabled {
+    background-color: #666666;
+    color: #cccccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}

@@ -32,8 +32,17 @@ public class GeneratorController {
         List<Generator> generators = generatorRepository.findAll();
         model.addAttribute("generators", generators);
         model.addAttribute("statusMap", statusMap);
+
+        // Обновляем статусы, если они отсутствуют
+        for (Generator gen : generators) {
+            if (!statusMap.containsKey(gen.getName())) {
+                statusMap.put(gen.getName(), "Неизвестно");
+            }
+        }
+
         return "index";
     }
+
 
     @PostMapping("/occupy/{generatorId}")
     public String occupyGenerator(@PathVariable Long generatorId, @RequestParam("userName") String userName) {
