@@ -32,17 +32,8 @@ public class GeneratorController {
         List<Generator> generators = generatorRepository.findAll();
         model.addAttribute("generators", generators);
         model.addAttribute("statusMap", statusMap);
-
-        // Обновляем статусы, если они отсутствуют
-        for (Generator gen : generators) {
-            if (!statusMap.containsKey(gen.getName())) {
-                statusMap.put(gen.getName(), "Неизвестно");
-            }
-        }
-
         return "index";
     }
-
 
     @PostMapping("/occupy/{generatorId}")
     public String occupyGenerator(@PathVariable Long generatorId, @RequestParam("userName") String userName) {
@@ -64,11 +55,10 @@ public class GeneratorController {
 
     @PostMapping("/updateStatuses")
     public String updateStatuses() {
-        updateAllStatuses();
+        updateAllStatuses(); // Выполняем синхронно
         return "redirect:/";
     }
 
-    // Новый метод для добавления генератора
     @GetMapping("/addGenerator")
     public String addGeneratorForm(Model model) {
         model.addAttribute("generator", new Generator());
@@ -78,6 +68,7 @@ public class GeneratorController {
     @PostMapping("/addGenerator")
     public String addGenerator(@ModelAttribute Generator generator) {
         generatorRepository.save(generator);
+        updateAllStatuses(); // Обновляем статусы после добавления генератора
         return "redirect:/";
     }
 
@@ -112,7 +103,7 @@ public class GeneratorController {
     private void updateAllStatuses() {
         List<Generator> generators = generatorRepository.findAll();
         for (Generator generator : generators) {
-            new Thread(() -> updateGeneratorStatus(generator)).start();
+            updateGeneratorStatus(generator); // Выполняем синхронно
         }
     }
 
