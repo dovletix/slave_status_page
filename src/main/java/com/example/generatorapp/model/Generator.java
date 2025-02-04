@@ -39,6 +39,14 @@ public class Generator {
         this.name = name;
     }
 
+    public String getDescription() {
+        return name;
+    }
+
+    public void setgetDescription(String name) {
+        this.name = name;
+    }
+
     public String getAddress() {
         return address;
     }

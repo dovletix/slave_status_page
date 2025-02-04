@@ -70,17 +70,33 @@ form {
     margin-bottom: 20px;
 }
 
-.delete-button {
-    background: none;
+/* Стили для кнопки "Освободить генератор" */
+.release-button {
+    background-color: #ff4d4d; /* Красный фон */
+    color: white;
     border: none;
-    color: #ff4d4d;
-    font-size: 18px;
+    padding: 8px 12px;
     cursor: pointer;
 }
 
-.delete-button:hover {
-    color: #ff1a1a;
+.release-button:hover {
+    background-color: #ff1a1a; /* Темно-красный при наведении */
 }
+
+/* Стили для кнопки удаления генератора */
+.delete-button {
+    background-color: #ff4d4d; /* Красный фон */
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.delete-button:hover {
+    background-color: #ff1a1a; /* Темно-красный при наведении */
+}
+
 
 button:disabled {
     background-color: #666666;
@@ -88,3 +104,4 @@ button:disabled {
     cursor: not-allowed;
     box-shadow: none;
 }
+

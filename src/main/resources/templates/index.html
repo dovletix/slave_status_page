@@ -5,8 +5,19 @@
     <link rel="stylesheet" type="text/css" href="/css/styles.css">
     <!-- Подключаем jQuery для удобства -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- Добавляем скрипт для управления кнопками -->
+    <!-- Добавляем скрипт для управления кнопками и подтверждениями -->
     <script type="text/javascript">
+        function confirmDelete(form) {
+            var generatorName = form.closest('tr').querySelector('td').innerText.trim();
+            return confirm('Уверены, что хотите удалить ' + generatorName + '?');
+        }
+
+        function confirmRelease(form) {
+            var generatorName = form.closest('tr').querySelector('td').innerText.trim();
+            var filesToDelete = '*.csv, *.jmx, *.sh, nohup.out';
+            return confirm('Точно хотите освободить генератор ' + generatorName + '?\nСледующие файлы будут удалены при освобождении генератора:\n' + filesToDelete);
+        }
+
         $(document).ready(function() {
             // Обработчик нажатия на кнопки занять/освободить
             $('form').on('submit', function() {
@@ -15,13 +26,6 @@
             });
         });
     </script>
-    <script type="text/javascript">
-        function confirmDelete(form) {
-            var generatorName = form.closest('tr').querySelector('td').innerText.trim();
-            return confirm('Уверены, что хотите удалить ' + generatorName + '?');
-        }
-    </script>
-
 </head>
 <body>
 <h1>Статусы генераторов</h1>
@@ -44,25 +48,18 @@
             <td th:text="${gen.name}">Generator Name</td>
             <td th:text="${statusMap[gen.name]}">Status</td>
             <td>
-                <!-- Блок действий в зависимости от статуса генератора -->
+                <!-- Действия в зависимости от статуса генератора -->
                 <th:block th:if="${(statusMap[gen.name] ?: '').startsWith('Свободен')}">
-                    <!-- Кнопка "Занять генератор" -->
                     <form th:action="@{'/occupy/' + ${gen.id}}" method="post" style="display:inline;">
                         <input type="text" name="userName" placeholder="Ваше имя" required>
+                        <input type="text" name="description" placeholder="Для чего занимаете генератор?" required>
                         <button type="submit">Занять генератор</button>
                     </form>
                 </th:block>
                 <th:block th:if="${(statusMap[gen.name] ?: '').startsWith('Занят')}">
-                    <!-- Кнопка "Освободить генератор" -->
-                    <form th:action="@{'/release/' + ${gen.id}}" method="post" style="display:inline;">
-                        <button type="submit">Освободить генератор</button>
+                    <form th:action="@{'/release/' + ${gen.id}}" method="post" style="display:inline;" onsubmit="return confirmRelease(this);">
+                        <button type="submit" class="release-button">Освободить генератор</button>
                     </form>
-                </th:block>
-                <!-- Кнопка "Сменить пароль" отображается только при ошибке -->
-                <th:block th:if="${statusMap[gen.name] != null and statusMap[gen.name].contains('Ошибка')}">
-                    <a th:href="@{'/changePassword/' + ${gen.id}}" style="display:inline;">
-                        <button>Сменить пароль</button>
-                    </a>
                 </th:block>
                 <!-- Кнопка удаления генератора -->
                 <form th:action="@{'/delete/' + ${gen.id}}" method="post" style="display:inline;" onsubmit="return confirmDelete(this);">
