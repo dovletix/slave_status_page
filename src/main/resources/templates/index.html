@@ -41,18 +41,22 @@
     <tr>
         <th>Генератор</th>
         <th>Статус</th>
+        <th>Причина занятия генератора</th>
         <th>Действия</th>
     </tr>
     <th:block th:each="gen : ${generators}">
         <tr>
             <td th:text="${gen.name}">Generator Name</td>
             <td th:text="${statusMap[gen.name]}">Status</td>
+            <td th:text="${descriptionMap[gen.name]}">Description</td>
             <td>
                 <!-- Действия в зависимости от статуса генератора -->
                 <th:block th:if="${(statusMap[gen.name] ?: '').startsWith('Свободен')}">
-                    <form th:action="@{'/occupy/' + ${gen.id}}" method="post" style="display:inline;">
-                        <input type="text" name="userName" placeholder="Ваше имя" required>
-                        <input type="text" name="description" placeholder="Для чего занимаете генератор?" required>
+                    <form th:action="@{'/occupy/' + ${gen.id}}" method="post" style="display:inline; text-align:center;">
+                        <div style="margin-bottom: 10px;">
+                            <input class="input-box" type="text" name="userName" placeholder="Ваше имя">
+                            <input class="input-box" type="text" name="description" placeholder="Причина занятия генератора">
+                        </div>
                         <button type="submit">Занять генератор</button>
                     </form>
                 </th:block>

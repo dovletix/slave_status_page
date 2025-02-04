@@ -77,6 +77,8 @@ form {
     border: none;
     padding: 8px 12px;
     cursor: pointer;
+    box-shadow: 0 0 10px #ff4d4d, 0 0 20px #ff4d4d; /* Красное свечение */
+    transition: background-color 0.3s, box-shadow 0.3s;
 }
 
 .release-button:hover {
@@ -91,6 +93,8 @@ form {
     padding: 8px 12px;
     cursor: pointer;
     font-size: 18px;
+    box-shadow: 0 0 10px #ff4d4d, 0 0 20px #ff4d4d; /* Красное свечение */
+    transition: background-color 0.3s, box-shadow 0.3s;
 }
 
 .delete-button:hover {
@@ -103,5 +107,19 @@ button:disabled {
     color: #cccccc;
     cursor: not-allowed;
     box-shadow: none;
+}
+
+.input-box {
+    display:block;
+    width: 80%;
+    margin-bottom: 5px;
+    padding: 10px;
+    border: 2px solid #00ffcc;
+    background-color: #0d0d0d;
+    color: #e6e6e6;
+    font-size: 16px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffcc;
+    outline: none;
 }
 

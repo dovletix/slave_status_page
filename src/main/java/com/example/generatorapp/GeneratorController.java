@@ -158,16 +158,16 @@ public class GeneratorController {
                         // Файл description.txt может отсутствовать
                         System.out.println("Файл description.txt может отсутствует. Неизвестна причина занятия генератора.");
                     }
-                    descritionField = "Занят (" + descriptionName + ")";
+                    descritionField = descriptionName;
                 } else {
-                    descritionField = "Свободен";
+                    descritionField = "-";
                 }
             } catch (SftpException e) {
                 descritionField = "lockfile.txt не найден";
             }
 
             statusMap.put(generator.getName(), status);
-            descriptionMap.put(generator.getDescription(), status);
+            descriptionMap.put(generator.getDescription(), descritionField);
 
         } catch (Exception e) {
             statusMap.put(generator.getName(), "Ошибка: " + e.getMessage());
@@ -325,7 +325,7 @@ public class GeneratorController {
                     executeRemoteCommand(session, findCommand.toString());
 
                     statusMap.put(generator.getName(), "Свободен");
-                    descriptionMap.put(generator.getName(), "Свободен");
+                    descriptionMap.put(generator.getName(), "-");
 
                 } finally {
                     // Гарантируем закрытие ресурсов
