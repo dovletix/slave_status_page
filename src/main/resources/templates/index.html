@@ -20,11 +20,32 @@
 
         $(document).ready(function() {
             // Обработчик нажатия на кнопки занять/освободить
-            $('form').on('submit', function() {
-                // Отключаем все кнопки в текущей строке таблицы
-                $(this).closest('tr').find('button').prop('disabled', true);
+            $('form').on('submit', function(event) {
+                var form = this;
+                var isRelease = form.action.includes('/release/');
+                var isDelete = form.action.includes('/delete/');
+                var generatorName = $(form).closest('tr').find('td').first().text().trim();
+                var filesToDelete = '*.csv, *.jmx, *.sh, nohup.out';
+
+                // Проверка подтверждения
+                var confirmed = true;
+                if (isRelease) {
+                    confirmed = confirm('Точно хотите освободить генератор ' + generatorName + '?\nСледующие файлы будут удалены при освобождении генератора:\n' + filesToDelete);
+                } else if (isDelete) {
+                    confirmed = confirm('Уверены, что хотите удалить ' + generatorName + '?');
+                }
+
+                // Если пользователь отменил, прерываем отправку формы
+                if (!confirmed) {
+                    event.preventDefault();
+                    return;
+                }
+
+                // Только если подтверждено, отключаем кнопки
+                $(form).closest('tr').find('button').prop('disabled', true);
             });
         });
+
     </script>
 </head>
 <body>
@@ -61,12 +82,12 @@
                     </form>
                 </th:block>
                 <th:block th:if="${(statusMap[gen.name] ?: '').startsWith('Занят')}">
-                    <form th:action="@{'/release/' + ${gen.id}}" method="post" style="display:inline;" onsubmit="return confirmRelease(this);">
+                    <form th:action="@{'/release/' + ${gen.id}}" method="post" style="display:inline;">
                         <button type="submit" class="release-button">Освободить генератор</button>
                     </form>
                 </th:block>
                 <!-- Кнопка удаления генератора -->
-                <form th:action="@{'/delete/' + ${gen.id}}" method="post" style="display:inline;" onsubmit="return confirmDelete(this);">
+                <form th:action="@{'/delete/' + ${gen.id}}" method="post" style="display:inline;">
                     <button class="delete-button" type="submit">🗑️</button>
                 </form>
             </td>
